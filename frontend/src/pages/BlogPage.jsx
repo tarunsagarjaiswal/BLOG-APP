@@ -71,7 +71,7 @@ function BlogPage() {
         //location -->  gives you the previously route or path.
 
         return () => {
-            if (!(window.location.pathname != `/edit/${id}` || window.location.pathname != `/blog/${id}`)) {
+            if ((window.location.pathname != `/edit/${id}` || window.location.pathname != `/blog/${id}`)) {
                 dispatch(removeSelectedBlog());
             }
         }

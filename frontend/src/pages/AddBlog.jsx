@@ -3,7 +3,7 @@ import React, { useRef } from 'react'
 import { useState } from 'react';
 import { useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import EditorJS from '@editorjs/editorjs';
 import Header from '@editorjs/header';
@@ -19,6 +19,7 @@ import ImageTool from '@editorjs/image';
 
 function AddBlog({ edit = false }) {
     const { id } = useParams();
+    const dispatch = useDispatch()
 
     const { token } = useSelector((state) => state.user)
     const { title, description, image, content } = useSelector(state => state.selectedBlogSlice);    //EDIT..
@@ -39,7 +40,7 @@ function AddBlog({ edit = false }) {
         formData.append("title", blogData.title)
         formData.append("description", blogData.description)
         formData.append("image", blogData.image)
-        
+
         formData.append("content", JSON.stringify(blogData.content))
 
         // let images = [];
@@ -76,31 +77,31 @@ function AddBlog({ edit = false }) {
         newFormData.append("title", blogData.title)
         newFormData.append("description", blogData.description)
         newFormData.append("image", blogData.image)
-        
+
         newFormData.append("content", JSON.stringify(blogData.content));
 
         let existingImages = [];
         blogData.content.blocks.forEach((it) => {
             if (it.type == "image") {
-                if(it.data.file.image){
-                newFormData.append("images", it.data.file.image)
+                if (it.data.file.image) {
+                    newFormData.append("images", it.data.file.image)
                 }
 
                 else {
                     existingImages.push({
-                        url : it.data.file.url,
-                        imageId : it.data.file.imageId
+                        url: it.data.file.url,
+                        imageId: it.data.file.imageId
                     })
                 }
             }
         })
 
-        for(let data of newFormData.entries()) {
+        for (let data of newFormData.entries()) {
             console.log(data)
         }
 
         console.log(existingImages)
-        newFormData.append("existingImages", JSON.stringify(existingImages)) 
+        newFormData.append("existingImages", JSON.stringify(existingImages))
 
         try {
             const res = await axios.patch(`http://localhost:3000/api/v1/blogs/${id}`,
@@ -141,7 +142,7 @@ function AddBlog({ edit = false }) {
             title: title,
             description: description,
             image: image,
-            content : content,
+            content: content,
         });
     }
 
@@ -159,7 +160,7 @@ function AddBlog({ edit = false }) {
                 holder: 'editorjs',     //you have write in the id of the element which you are using.
                 placeholder: "Write Something....",
 
-                data : content,
+                data: content,
 
                 tools: {
                     header: {
@@ -236,32 +237,80 @@ function AddBlog({ edit = false }) {
 
 
     return (
-        <div className='w-[32%] mx-auto py-6'>
-            <label htmlFor="">Title</label>
-            <input className='pl-2' value={blogData.title} onChange={(e) => (setBlogData(prev => ({ ...prev, title: e.target.value })))} type="text" placeholder='title' />
-            <br />
+        <div className='max-w-4xl mx-auto mt-8 mb-16 p-4 sm:p-8 flex flex-col gap-6'>
 
-            <label htmlFor="">Description</label>
-            <input className='pl-2' value={blogData.description} onChange={(e) => (setBlogData(prev => ({ ...prev, description: e.target.value })))} type="text" placeholder='description' />
-            <br />
-
-            <div>
-                <label htmlFor="image">
-                    {
-                        blogData.image ? <img className='aspect-video object-cover' src={typeof (blogData.image) == "string" ? blogData.image : URL.createObjectURL(blogData.image)} alt="" /> : <div className='aspect-video flex justify-center text-3xl font-semibold items-center bg-gray-300' >SELECT IMAGE</div>
-                    }
-                </label>
-                <input className='hidden' id='image' onChange={(e) => (setBlogData(prev => ({ ...prev, image: e.target.files[0] })))} type="file" accept='all' placeholder='image' />
+            <div className="flex flex-col gap-1">
+                <p className="text-gray-500 font-semibold uppercase tracking-wider pl-1">Title</p>
+                <input
+                    className='w-full text-2xl sm:text-3xl font-bold text-gray-800 bg-transparent border-none focus:outline-none focus:ring-0 placeholder:text-gray-300 placeholder:font-normal'
+                    value={blogData.title}
+                    onChange={(e) => (setBlogData(prev => ({ ...prev, title: e.target.value })))}
+                    type="text"
+                    placeholder='Enter your blog title...'
+                />
             </div>
-            <br />
 
-            <div id='editorjs'></div>
+            <div className="flex flex-col gap-1">
+                <p className="text-gray-500 font-semibold uppercase tracking-wider pl-1">Description</p>
+                <textarea
+                    className='w-full h-24 resize-none bg-gray-50 border border-gray-200 rounded-lg p-3 text-gray-700 text-base focus:outline-none focus:bg-white focus:border-gray-400 focus:ring-2 focus:ring-gray-100 transition-all shadow-sm'
+                    value={blogData.description}
+                    onChange={(e) => (setBlogData(prev => ({ ...prev, description: e.target.value })))}
+                    placeholder='Write a short description about this post...'
+                />
+            </div>
 
-            {
-                id ?
-                    <button className='bg-red-300 cursor-pointer p-1 rounded-lg font-semibold' onClick={updatePost}>Update Blog..</button> :
-                    <button className='bg-red-300 cursor-pointer p-1 rounded-lg font-semibold' onClick={handlePost}>POST</button>
-            }
+
+            <div className="flex flex-col gap-1">
+                <p className="text-gray-500 font-semibold uppercase tracking-wider pl-1">Cover Image</p>
+                <label htmlFor="image" className="cursor-pointer block rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow border-2 border-dashed border-gray-300 hover:border-gray-400">
+                    {blogData.image ? (
+                        <img
+                            className='w-full aspect-video object-cover'
+                            src={typeof (blogData.image) == "string" ? blogData.image : URL.createObjectURL(blogData.image)}
+                            alt="Cover"
+                        />
+                    ) : (
+                        <div className='w-full aspect-video flex flex-col gap-2 justify-center items-center bg-gray-100/50 hover:bg-gray-100 transition-colors'>
+                            <i className="fi fi-rr-picture text-3xl text-gray-400"></i>
+                            <span className="text-lg font-bold text-gray-700 tracking-wide">SELECT IMAGE</span>
+                        </div>
+                    )}
+                </label>
+                <input
+                    className='hidden'
+                    id='image'
+                    onChange={(e) => (setBlogData(prev => ({ ...prev, image: e.target.files[0] })))}
+                    type="file"
+                    accept='image/*'
+                />
+            </div>
+
+            <div className="flex flex-col gap-1 mt-2">
+                <p className="text-gray-500 font-semibold uppercase tracking-wider pl-1">Content</p>
+                <div
+                    id='editorjs'
+                    className="w-full min-h-100 text-base text-gray-800 pt-2"
+                ></div>
+            </div>
+
+            <div className="flex items-center mt-4">
+                {id ? (
+                    <button
+                        className='bg-blue-300 hover:bg-blue-400 text-blue-900 font-bold px-8 py-2.5 rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer text-base'
+                        onClick={updatePost}
+                    >
+                        Update Blog
+                    </button>
+                ) : (
+                    <button
+                        className='bg-blue-300 hover:bg-blue-400 text-blue-900 font-bold px-8 py-2.5 rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer text-base'
+                        onClick={handlePost}
+                    >
+                        POST
+                    </button>
+                )}
+            </div>
         </div>
     )
 }

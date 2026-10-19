@@ -11,6 +11,7 @@ const selectedBlogSlice = createSlice({
 
     removeSelectedBlog(state, action) {
       localStorage.removeItem("selectedBlog");
+      
     },
 
     changeLikes(state, action) {
