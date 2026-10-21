@@ -61,7 +61,7 @@ function Comment() {
     }
 
     return (
-        <div className='p-5 h-screen bg-white fixed top-0 right-0 border-l w-96 border-gray-300 shadow-2xl overflow-y-scroll'>
+        <div className='p-5 h-screen bg-white fixed top-0 z-20 right-0 border-l w-96 border-gray-300 shadow-2xl overflow-y-scroll'>
             <div className='flex justify-between items-center'>
                 <h1 className='text-xl font-semibold'>Comment {comments.length}</h1>
                 <i onClick={() => dispatch(setisOpen(false))} className="flex fi fi-br-cross-small text-2xl cursor-pointer"></i>
@@ -99,17 +99,26 @@ function Comment() {
 
                                 <p className='text-lg tracking-tight font-serif'>{it.comment}</p>
 
-                                <div className='flex gap-6 text-lg'>
-                                    <div className='flex items-center gap-2'>
-                                        {
-                                            it.likes.includes(userId) ?
-                                                <i onClick={() => handleCommentLike(it._id)} className=" cursor-pointer fi fi-sr-thumbs-up text-blue-500"></i>
-                                                :
-                                                <i onClick={() => handleCommentLike(it._id)} className=" cursor-pointer fi fi-rr-social-network "></i>
-                                        }
+                                <div className='flex justify-between'>
+                                    <div className='flex gap-5'>
+                                        <div className='flex text-lg items-center gap-2'>
+                                            {
+                                                it.likes.includes(userId) ?
+                                                    <i onClick={() => handleCommentLike(it._id)} className=" cursor-pointer fi fi-sr-thumbs-up text-blue-500"></i>
+                                                    :
+                                                    <i onClick={() => handleCommentLike(it._id)} className=" cursor-pointer fi fi-rr-social-network "></i>
+                                            }
 
-                                        <p className='pb-2'>{it.likes.length}</p>
+                                            <p className='pb-2'>{it.likes.length}</p>
+                                        </div>
+
+                                        <div className='flex text-lg items-center gap-2'>
+                                            <i className=" cursor-pointer fi fi-sr-comment-alt"></i>
+                                            <p className='pb-2'>5</p>
+                                        </div>
                                     </div>
+
+                                    <p className='text-sm font-semibold  cursor-pointer hover:text-gray-600  hover:underline font-serif'>reply</p>
                                 </div>
                             </div>
                         </div>

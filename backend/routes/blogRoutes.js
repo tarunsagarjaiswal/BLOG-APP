@@ -1,7 +1,7 @@
 const express = require("express");
 const { getBlogs, createBlog, getBlog, updateBlog, deleteBlog, likeBlog} = require("../controllers/blogController");
 const verifyUser = require("../middlewares/auth");
-const { commentBlog, deleteComment, editComment, likeComment } = require("../controllers/commentController");
+const { commentBlog, deleteComment, editComment, likeComment, addNestedComment } = require("../controllers/commentController");
 const upload = require("../utils/multer");
 const route = express.Router();     //helps you to perform all the methods, and similar like instance of app that is created by express but you can use route.listen() bcauz it is only handle my the main file app.
 
@@ -27,5 +27,7 @@ route.delete('/blogs/comment/:id', verifyUser, deleteComment)
 route.patch('/blogs/edit-comment/:id', verifyUser, editComment)
 
 route.patch('/blogs/like-comment/:id', verifyUser, likeComment)
+
+route.post("/comment/:parentCommentId/:id", verifyUser, addNestedComment);
     
 module.exports = route;

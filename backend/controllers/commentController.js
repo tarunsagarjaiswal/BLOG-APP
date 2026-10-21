@@ -31,8 +31,8 @@ async function commentBlog(req, res) {
     }).then((it) => {
       return it.populate({
         path: "user",
-        select : "name email",
-      })
+        select: "name email",
+      });
     });
 
     await Blog.findByIdAndUpdate(
@@ -80,12 +80,16 @@ async function deleteComment(req, res) {
       });
     }
 
-    await Comment.findByIdAndDelete({ _id: commentId });
+    await Comment.deleteMany({ _id : { $in : comment.replies }})
+    
     await Blog.findByIdAndUpdate(
-      comment.blog,
+      comment.blog._id,
       { $pull: { comments: commentId } },
       { new: true },
     );
+
+    await Comment.findByIdAndDelete({ _id: commentId });
+    
 
     return res.status(200).json({
       success: true,
@@ -104,7 +108,7 @@ async function editComment(req, res) {
     const commentId = req.params.id;
     const creator = req.user;
 
-    const comment = await Comment.findById({ _id: commentId});
+    const comment = await Comment.findById({ _id: commentId });
     if (!comment) {
       return res.status(400).json({
         success: false,
@@ -112,20 +116,23 @@ async function editComment(req, res) {
       });
     }
 
-    if(comment.user.toString() !== creator.toString()) {
-         return res.status(400).json({
+    if (comment.user.toString() !== creator.toString()) {
+      return res.status(400).json({
         success: false,
         message: "You didnt commented on this blog..",
       });
     }
 
-    await Comment.findByIdAndUpdate(commentId, {$set : req.body}, {new : true});
-     return res.status(200).json({
-        success: false,
-        message: "comment eidted successfully",
-        comment
-      });
-
+    await Comment.findByIdAndUpdate(
+      commentId,
+      { $set: req.body },
+      { new: true },
+    );
+    return res.status(200).json({
+      success: false,
+      message: "comment eidted successfully",
+      comment,
+    });
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -157,7 +164,7 @@ async function likeComment(req, res) {
       return res.status(200).json({
         success: true,
         message: "comment liked successfully",
-        comment
+        comment,
       });
     } else {
       await Comment.findByIdAndUpdate(
@@ -169,7 +176,7 @@ async function likeComment(req, res) {
       return res.status(200).json({
         success: true,
         message: "comment disliked successfully",
-        comment
+        comment,
       });
     }
   } catch (error) {
@@ -180,5 +187,61 @@ async function likeComment(req, res) {
   }
 }
 
-module.exports = { commentBlog, deleteComment, editComment, likeComment };
+async function addNestedComment(req, res) {
+  try {
+    const userId = req.user;
+    const {id : blogId, parentCommentId} = req.params;
 
+    const blog = await Blog.findById({_id : blogId});
+    const comment = await Comment.findById(parentCommentId);
+
+    const { reply } = req.body;
+
+    if(!comment) {
+      res.status(404).json({
+        success : false,
+        mesaage : "Parent comment not found",
+      })
+    }
+
+    if(!blog) {
+      res.status(404).json({
+        success : false,
+        mesaage : "Blog not found",
+      })
+    }
+
+    const newReply = await Comment.create({
+      blog : blogId,
+      parentComment : parentCommentId,
+      comment : reply,
+      user : userId,
+
+    })
+
+    await Comment.findByIdAndUpdate(parentCommentId, {
+      $push : {replies : newReply._id }},
+      { new: true },
+    ) 
+
+    res.status(200).josn({
+      success: false,
+      message: "Reply added successfully",
+    });
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).josn({
+      success: false,
+      message: "Something went wrong from ourside",
+    });
+  }
+}
+
+module.exports = {
+  commentBlog,
+  deleteComment,
+  editComment,
+  likeComment,
+  addNestedComment,
+};

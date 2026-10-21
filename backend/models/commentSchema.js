@@ -2,9 +2,9 @@ const mongoose = require("mongoose");
 
 const commentSchema = new mongoose.Schema(
   {
-    comment : {
-        type : String,
-        required : true
+    comment: {
+      type: String,
+      required: true,
     },
     blog: {
       type: mongoose.Schema.Types.ObjectId,
@@ -16,12 +16,25 @@ const commentSchema = new mongoose.Schema(
       ref: "User",
     },
 
-    likes : [
+    likes: [
       {
-        type : mongoose.Schema.Types.ObjectId,
-        ref : "User"
-      }
-    ]
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
+
+    // for the nested comment..
+    replies: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Comment",
+      },
+    ],
+    parentComment: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Comment",
+      default : null, // if it is the top comment 
+    },
   },
   { timestamps: true },
 );

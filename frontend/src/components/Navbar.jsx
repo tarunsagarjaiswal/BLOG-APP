@@ -10,7 +10,7 @@ function Navbar() {
 
     return (
         <>
-            <nav className='sticky top-0 z-50 w-full h-16 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm flex items-center justify-between px-4 sm:px-8'>
+            <nav className='sticky top-0 z-10 w-full h-16 bg-white/95 backdrop-blur-sm border-b border-gray-100 shadow-sm flex items-center justify-between px-4 sm:px-8'>
                 
                 <div className='flex items-center gap-6'>
                     <Link 
