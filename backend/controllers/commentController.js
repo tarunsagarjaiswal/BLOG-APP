@@ -224,14 +224,14 @@ async function addNestedComment(req, res) {
       { new: true },
     ) 
 
-    res.status(200).josn({
+    res.status(200).json({
       success: false,
       message: "Reply added successfully",
     });
 
   } catch (error) {
     console.log(error);
-    res.status(500).josn({
+    res.status(500).json({
       success: false,
       message: "Something went wrong from ourside",
     });

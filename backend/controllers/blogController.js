@@ -10,12 +10,10 @@ const { uploadImage, deleteFromCloudinary } = require("../utils/uploadImages");
 async function getBlog(req, res) {
   try {
     const blogId = req.params.blogId;
+    
     const getBlog = await Blog.findOne({ blogId: blogId })
       .populate({
         path: "comments",
-        select: "comment user likes blog updatedAt createdAt",
-        // populate : "user" //nested populate
-
         populate: {
           path: "user",
           select: "name email",
@@ -24,12 +22,42 @@ async function getBlog(req, res) {
       .populate({
         path: "creator",
         select: "name email",
-      });
+      })
+      .lean(); // Converts to a plain JS object so we can mutate it freely
 
-    if (!getBlog)
+    if (!getBlog) {
       return res.status(404).json({
         message: "BLOG NOT FOUND",
       });
+    }
+
+    // Recursive function to deeply populate all nested replies
+    async function populateReplies(commentsArray) {
+      if (!commentsArray || commentsArray.length === 0) return commentsArray;
+
+      for (let i = 0; i < commentsArray.length; i++) {
+        let currentComment = commentsArray[i];
+
+        // If this comment has replies (array of ObjectIds)
+        if (currentComment.replies && currentComment.replies.length > 0) {
+          
+          // 1. Fetch the full comment documents for these ObjectIds 
+          const fetchedReplies = await Comment.find({ _id: { $in: currentComment.replies } })
+            .populate({
+              path: "user",
+              select: "name email"
+            })
+            .lean();
+
+          // 2. Recursively populate the replies of these newly fetched replies
+          currentComment.replies = await populateReplies(fetchedReplies);
+        }
+      }
+      return commentsArray;
+    }
+
+    // Trigger the recursive function on the top-level comments
+    getBlog.comments = await populateReplies(getBlog.comments);
 
     return res.status(200).json({
       message: "Blog fetched successfully",
