@@ -64,8 +64,6 @@ async function deleteComment(req, res) {
       select: "creator",
     });
 
-    console.log(comment);
-
     if (!comment) {
       return res.status(400).json({
         success: false,
@@ -73,23 +71,36 @@ async function deleteComment(req, res) {
       });
     }
 
-    if (comment.user != userId || comment.blog.creator != userId) {
+    if(comment.user.toString() !== userId.toString() && 
+      comment.blog.creator.toString() !== userId.toString() ) {
       return res.status(400).json({
         success: false,
         message: "You didnt commented and not authorizes for this blog..",
       });
     }
 
-    await Comment.deleteMany({ _id : { $in : comment.replies }})
-    
+    async function deleteCommentAndReplies(id) {
+      let currentComment = await Comment.findById(id);
+
+      if (!currentComment) return;
+
+      if (currentComment.replies && currentComment.replies.length > 0) {
+        for (let replyId of currentComment.replies) {
+          await deleteCommentAndReplies(replyId); 
+        }
+      }
+
+      await Comment.findByIdAndDelete(id);
+    }
+
+    await deleteCommentAndReplies(commentId);
+
     await Blog.findByIdAndUpdate(
       comment.blog._id,
       { $pull: { comments: commentId } },
       { new: true },
     );
 
-    await Comment.findByIdAndDelete({ _id: commentId });
-    
 
     return res.status(200).json({
       success: true,
@@ -107,36 +118,44 @@ async function editComment(req, res) {
   try {
     const commentId = req.params.id;
     const creator = req.user;
+    const { updatedCommentContent } = req.body;
 
     const comment = await Comment.findById({ _id: commentId });
     if (!comment) {
-      return res.status(400).json({
+      return res.status(404).json({
         success: false,
         message: "You have given wrong comment id..",
       });
     }
 
     if (comment.user.toString() !== creator.toString()) {
-      return res.status(400).json({
+      return res.status(403).json({
         success: false,
         message: "You didnt commented on this blog..",
       });
     }
 
+    if (!updatedCommentContent) {
+      return res.status(400).json({
+        success: false,
+        message: "You didnt updated your comment..",
+      });
+    }
+
     await Comment.findByIdAndUpdate(
       commentId,
-      { $set: req.body },
+      { comment: updatedCommentContent },
       { new: true },
     );
     return res.status(200).json({
-      success: false,
+      success: true,
       message: "comment eidted successfully",
       comment,
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: "Internal server error",
+      message: error.message || "Internal server error",
     });
   }
 }
@@ -190,45 +209,52 @@ async function likeComment(req, res) {
 async function addNestedComment(req, res) {
   try {
     const userId = req.user;
-    const {id : blogId, parentCommentId} = req.params;
+    const { id: blogId, parentCommentId } = req.params;
 
-    const blog = await Blog.findById({_id : blogId});
+    const blog = await Blog.findById({ _id: blogId });
     const comment = await Comment.findById(parentCommentId);
 
     const { reply } = req.body;
 
-    if(!comment) {
+    if (!comment) {
       res.status(404).json({
-        success : false,
-        mesaage : "Parent comment not found",
-      })
+        success: false,
+        mesaage: "Parent comment not found",
+      });
     }
 
-    if(!blog) {
+    if (!blog) {
       res.status(404).json({
-        success : false,
-        mesaage : "Blog not found",
-      })
+        success: false,
+        mesaage: "Blog not found",
+      });
     }
 
     const newReply = await Comment.create({
-      blog : blogId,
-      parentComment : parentCommentId,
-      comment : reply,
-      user : userId,
+      blog: blogId,
+      parentComment: parentCommentId,
+      comment: reply,
+      user: userId,
+    }).then((it) => {
+      return it.populate({
+        path: "user",
+        select: "name email",
+      });
+    });
 
-    })
-
-    await Comment.findByIdAndUpdate(parentCommentId, {
-      $push : {replies : newReply._id }},
+    await Comment.findByIdAndUpdate(
+      parentCommentId,
+      {
+        $push: { replies: newReply._id },
+      },
       { new: true },
-    ) 
+    );
 
     res.status(200).json({
       success: false,
       message: "Reply added successfully",
+      newReply: newReply,
     });
-
   } catch (error) {
     console.log(error);
     res.status(500).json({

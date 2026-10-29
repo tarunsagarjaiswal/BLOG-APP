@@ -156,7 +156,7 @@ async function createBlog(req, res) {
     }
 
     const cloudInfo = await uploadImage(
-      `data:image/jpeg;base64,${images[0].buffer.toString("base64")}`,
+      `data:image/jpeg;base64,${image[0].buffer.toString("base64")}`,
     );
 
     const { secure_url, public_id } = cloudInfo;

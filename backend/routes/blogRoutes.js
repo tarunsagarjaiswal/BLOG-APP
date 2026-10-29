@@ -22,7 +22,7 @@ route.post("/blogs/like/:id", verifyUser, likeBlog);
 
 route.post("/blogs/comment/:id", verifyUser, commentBlog);
 
-route.delete('/blogs/comment/:id', verifyUser, deleteComment)
+route.delete('/blogs/delete-comment/:id', verifyUser, deleteComment)
 
 route.patch('/blogs/edit-comment/:id', verifyUser, editComment)
 

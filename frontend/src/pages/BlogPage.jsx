@@ -66,14 +66,15 @@ function BlogPage() {
 
     useEffect(() => {
         fetchBlogById();
-
+        
         //window.location.pathname  -->  gives you the current route or path.
         //location -->  gives you the previously route or path.
-
+        
         return () => {
             if ((window.location.pathname != `/edit/${id}` || window.location.pathname != `/blog/${id}`)) {
                 dispatch(removeSelectedBlog());
             }
+            dispatch(setisOpen(false))
         }
     }, [id]);
 

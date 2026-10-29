@@ -1,4 +1,5 @@
-import { createSlice } from "@reduxjs/toolkit";
+import { createSlice, current } from "@reduxjs/toolkit";
+//for printing the variables in console.log inside the slice in redux, we use current.
 
 const selectedBlogSlice = createSlice({
   name: "selectedBlogSlice",
@@ -46,6 +47,43 @@ const selectedBlogSlice = createSlice({
         comment.likes = [...comment.likes, userId];
       }
     },
+
+    setReplies(state, action) {
+      // console.log(action.payload);
+
+      let newReply = action.payload;
+
+      function findParentComment(comments) {
+        let parentComment;
+
+        for (const comment of comments) {
+          if (comment._id == newReply.parentComment) {
+            parentComment = {
+              ...comment,
+              replies : [...comment.replies, newReply]};
+            break;
+          }
+
+          if(comment.replies.length > 0) {
+            parentComment = findParentComment(comment.replies);
+            if(parentComment) {
+              parentComment = {
+                ...comment,
+                replies : comment.replies.map(reply => reply._id == parentComment._id ? parentComment : reply)
+              }
+              break;
+            }
+          }
+        }
+
+        return parentComment;
+      }
+
+      let parentComment = findParentComment(state.comments);
+      console.log(parentComment);    
+
+      state.comments = state.comments.map(comment => comment._id == parentComment._id ? parentComment : comment)
+    },
   },
 });
 
@@ -55,5 +93,6 @@ export const {
   changeLikes,
   setCommentAction,
   setCommentLikes,
+  setReplies,
 } = selectedBlogSlice.actions;
 export default selectedBlogSlice.reducer;

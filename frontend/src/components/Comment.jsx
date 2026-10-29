@@ -4,15 +4,18 @@ import { setisOpen } from '../utils/commentSlice';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useParams } from 'react-router-dom';
-import { setCommentAction, setCommentLikes } from '../utils/selectedBlogSlice';
+import { setCommentAction, setCommentLikes, setReplies } from '../utils/selectedBlogSlice';
 import formatDate from '../utils/fromatDate';
 
 function Comment() {
-    const { _id: blogID, comments } = useSelector(state => state.selectedBlogSlice)
+    const { _id: blogID, comments, creator: { _id: creatorId } } = useSelector(state => state.selectedBlogSlice)
     const { token, id: userId } = useSelector(state => state.user)
     const dispatch = useDispatch();
     const [comment, setComment] = useState("");
     const [activeReply, setActiveReply] = useState(null);
+
+    const [currentPopup, setCurrentPopup] = useState(null);
+    const [currentEditComment, setCurrentEditComment] = useState(null);
 
 
     async function handleComment() {
@@ -29,8 +32,8 @@ function Comment() {
 
             );
             toast.success(res.data.message);
-            dispatch(setCommentAction(res?.data?.newComment));
             setComment("");
+            dispatch(setCommentAction(res?.data?.newComment));
 
             console.log(res)
         } catch (error) {
@@ -55,7 +58,7 @@ function Comment() {
 
                 <button onClick={() => handleComment()} className='mt-5 cursor-pointer m-3 bg-gray-600 font-semibold rounded-xl px-6 py-3 text-white'> ADD</button>
 
-            </div>
+            </  div>
 
             <div className='mt-5  p-2'>
                 <DisplayComment
@@ -65,14 +68,21 @@ function Comment() {
                     token={token}
                     activeReply={activeReply}
                     setActiveReply={setActiveReply}
+                    currentPopup={currentPopup}
+                    setCurrentPopup={setCurrentPopup}
+                    currentEditComment={currentEditComment}
+                    setCurrentEditComment={setCurrentEditComment}
+                    creatorId={creatorId}
                 />
             </div>
         </div>
     )
 }
 
-function DisplayComment({ comments, userId, blogID, token, activeReply, setActiveReply }) {
+function DisplayComment({ comments, userId, blogID, token, activeReply, setActiveReply, currentPopup, setCurrentPopup, currentEditComment, setCurrentEditComment, creatorId }) {
     const [reply, setReply] = useState("");
+    const [updatedCommentContent, setUpdatedCommentContent] = useState(null)
+
     const dispatch = useDispatch();
 
     async function handleReply(parentCommentId) {
@@ -88,7 +98,10 @@ function DisplayComment({ comments, userId, blogID, token, activeReply, setActiv
                 }
 
             );
-            toast.success(res.data.message);
+            toast.success(res?.data?.message);
+            setActiveReply(null);
+            setReply("");
+            dispatch(setReplies(res?.data?.newReply));
 
             console.log(res)
         } catch (error) {
@@ -98,7 +111,6 @@ function DisplayComment({ comments, userId, blogID, token, activeReply, setActiv
     }
 
     async function handleCommentLike(commentId) {
-        // console.log(commentId)
         try {
             const res = await axios.patch(`${import.meta.env.VITE_BACKEND_URL}/blogs/like-comment/${commentId}`,
                 {},
@@ -115,7 +127,7 @@ function DisplayComment({ comments, userId, blogID, token, activeReply, setActiv
             dispatch(setCommentLikes({ commentId, userId }))
 
         } catch (error) {
-            toast(error.response.data.message)
+            toast(error?.response?.data?.message)
         }
     }
 
@@ -123,66 +135,158 @@ function DisplayComment({ comments, userId, blogID, token, activeReply, setActiv
         setActiveReply((prev) => prev == id ? null : id)
     }
 
+    async function handleCommentUpdate(id) {
+        try {
+            const res = await axios.patch(`${import.meta.env.VITE_BACKEND_URL}/blogs/edit-comment/${id}`,
+                {
+                    updatedCommentContent,
+                },
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    }
+                }
+
+            );
+            toast.success(res?.data?.message);
+
+        } catch (error) {
+            // console.log(error.response)
+            toast.error(error?.response?.data?.message || "something went wrong");
+        }
+        finally {
+            setUpdatedCommentContent("");
+            setCurrentEditComment(null)
+            // dispatch(setReplies(res?.data?.newReply));
+        }
+    }
+
+    async function handleCommentDelete(id) {
+        try {
+            const res = await axios.delete(`${import.meta.env.VITE_BACKEND_URL}/blogs/delete-comment/${id}`,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                    }
+                }
+
+            );
+            toast.success(res?.data?.message);
+
+        } catch (error) {
+            // console.log(error.response)
+            toast.error(error?.response?.data?.message || "something went wrong");
+        }
+        finally {
+        //     setUpdatedCommentContent("");
+            // setCurrentEditComment(null)
+            // dispatch(setReplies(res?.data?.newReply));
+        }
+    }
+
     return comments?.map(it => (
         <div key={it._id}>
             <hr className='opacity-20' />
-            <div className='flex flex-col gap-2 py-4'>
-                <div className='w-full flex justify-between'>
-                    <div className='flex gap-5'>
-                        <div className='w-9 '>
-                            <img className='rounded-full' src={`https://api.dicebear.com/10.x/initials/svg?seed=${it.user.name}`} alt="" />
-                        </div>
+            {
+                currentEditComment == it._id ?
+
+                    <div className='mt-2'>
+                        <textarea
+                            defaultValue={it.comment}
+                            type="text" placeholder='Reply..'
+                            className='resize-none h-32 w-full p-3 focus:outline-none text-lg shadow'
+                            onChange={(e) => setUpdatedCommentContent(e.target.value)}
+                        />
                         <div>
-                            <p>{it.user.name}</p>
-                            <p>{formatDate(it.createdAt)}</p>
+                            <button
+                                onClick={() => setCurrentEditComment(null)}
+                                className='mt-5 cursor-pointer m-3 bg-red-500 font-semibold rounded-xl px-4 py-2 text-white'> Cancel</button>
+
+                            <button
+                                onClick={() => handleCommentUpdate(it._id)}
+                                className='mt-5 cursor-pointer m-3 bg-green-500 font-semibold rounded-xl px-4 py-2 text-white'> Edit</button>
                         </div>
-                    </div>
 
-                    <i className="cursor-pointer flex fi fi-bs-menu-dots"></i>
-                </div>
 
-                <p className='text-lg tracking-tight font-serif'>{it.comment}</p>
+                    </  div>
+                    :
+                    <div className='flex flex-col gap-2 py-4'>
+                        <div className='w-full flex justify-between'>
+                            <div className='flex gap-5'>
+                                <div className='w-9 '>
+                                    <img className='rounded-full' src={`https://api.dicebear.com/10.x/initials/svg?seed=${it.user.name}`} alt="" />
+                                </div>
+                                <div>
+                                    <p>{it.user.name}</p>
+                                    <p>{formatDate(it.createdAt)}</p>
+                                </div>
+                            </div>
 
-                <div className='flex justify-between'>
-                    <div className='flex gap-5'>
-                        <div className='flex text-lg items-center gap-2'>
                             {
-                                it.likes.includes(userId) ?
-                                    <i onClick={() => handleCommentLike(it._id)} className=" cursor-pointer fi fi-sr-thumbs-up text-blue-500"></i>
+                                    (creatorId == userId || it?.user?._id == userId) ? (currentPopup == it._id ?
+                                    <div className='bg-gray-300 w-17.5 rounded-xl'>
+                                        <i
+                                            onClick={() => setCurrentPopup((prev) => prev == it._id ? null : it._id)}
+                                            className="flex fi fi-br-cross-small text-lg left-11.5 relative cursor-pointer"></i>
+
+                                        {it?.user?._id == userId &&
+                                        <p
+                                            onClick={() => setCurrentEditComment(it._id)}
+                                            className='cursor-pointer tracking-tight font-semibold hover:bg-blue-400 py-1 px-2'>Edit</p>}
+                                        <p
+                                            onClick={() => handleCommentDelete(it._id)}
+                                            className='cursor-pointer tracking-tight font-semibold hover:bg-blue-400 py-1 px-2'>Delete</p>
+                                    </div> :
+
+                                    <i onClick={() => setCurrentPopup(it._id)} className="cursor-pointer flex fi fi-bs-menu-dots"></i>)
                                     :
-                                    <i onClick={() => handleCommentLike(it._id)} className=" cursor-pointer fi fi-rr-social-network "></i>
+                                    ""
                             }
 
-                            <p className='pb-2'>{it.likes.length}</p>
                         </div>
 
-                        <div className='flex text-lg items-center gap-2'>
-                            <i className=" cursor-pointer fi fi-sr-comment-alt"></i>
-                            <p className='pb-2'>{it.replies.length}</p>
+                        <p className='text-lg tracking-tight font-serif'>{it.comment}</p>
+
+                        <div className='flex justify-between'>
+                            <div className='flex gap-5'>
+                                <div className='flex text-lg items-center gap-2'>
+                                    {
+                                        it?.likes?.includes(userId) ?
+                                            <i onClick={() => handleCommentLike(it._id)} className=" cursor-pointer fi fi-sr-thumbs-up text-blue-500"></i>
+                                            :
+                                            <i onClick={() => handleCommentLike(it._id)} className=" cursor-pointer fi fi-rr-social-network "></i>
+                                    }
+
+                                    <p className='pb-2'>{it?.likes?.length}</p>
+                                </div>
+
+                                <div className='flex text-lg items-center gap-2'>
+                                    <i className=" cursor-pointer fi fi-sr-comment-alt"></i>
+                                    <p className='pb-2'>{it?.replies?.length}</p>
+                                </div>
+                            </div>
+
+                            <p onClick={() => handleActiveReply(it._id)} className='text-sm font-semibold  cursor-pointer hover:text-gray-600  hover:underline font-serif'>reply</p>
                         </div>
+
+                        {
+                            activeReply == it?._id &&
+                            <div>
+                                <div className='mt-2'>
+                                    <textarea
+                                        type="text" placeholder='Reply..'
+                                        className='resize-none h-28 w-full p-3 focus:outline-none text-lg shadow'
+                                        onChange={(e) => setReply(e.target.value)} />
+                                </div>
+                                <button onClick={() => handleReply(it._id)} className='mt-2 cursor-pointer m-2 bg-green-600 font-semibold rounded-xl px-4 py-2 text-white'>Respond</button>
+                            </div>
+
+                        }
                     </div>
-
-                    <p onClick={() => handleActiveReply(it._id)} className='text-sm font-semibold  cursor-pointer hover:text-gray-600  hover:underline font-serif'>reply</p>
-                </div>
-
-                {
-                    activeReply == it._id &&
-                    <div>
-                        <div className='mt-2'>
-                            <textarea
-                                type="text" placeholder='Reply..'
-                                className='resize-none h-28 w-full p-3 focus:outline-none text-lg shadow'
-                                onChange={(e) => setReply(e.target.value)} />
-                        </div>
-                        <button onClick={() => handleReply(it._id)} className='mt-2 cursor-pointer m-2 bg-green-600 font-semibold rounded-xl px-4 py-2 text-white'>Respond</button>
-                    </div>
-
-                }
-
-            </div>
+            }
 
             {
-                it.replies.length > 0 && <div className='pl-7 border-l mt-2 border-gray-300'>
+                it?.replies?.length > 0 && <div className='pl-7 border-l mt-2 border-gray-300'>
                     <DisplayComment
                         comments={it.replies}
                         userId={userId}
@@ -190,6 +294,11 @@ function DisplayComment({ comments, userId, blogID, token, activeReply, setActiv
                         token={token}
                         activeReply={activeReply}
                         setActiveReply={setActiveReply}
+                        currentPopup={currentPopup}
+                        setCurrentPopup={setCurrentPopup}
+                        currentEditComment={currentEditComment}
+                        setCurrentEditComment={setCurrentEditComment}
+                        creatorId={creatorId}
                     />
                 </div>
             }
