@@ -39,13 +39,35 @@ const selectedBlogSlice = createSlice({
 
       const { commentId, userId } = action.payload;
 
-      let comment = state.comments.find((it) => it._id == commentId);
+      // let comment = state.comments.find((it) => it._id == commentId);
 
-      if (comment.likes.includes(userId)) {
-        comment.likes = comment.likes.filter((like) => like != userId);
-      } else {
-        comment.likes = [...comment.likes, userId];
+      // if (comment.likes.includes(userId)) {
+      //   comment.likes = comment.likes.filter((like) => like != userId);
+      // } else {
+      //   comment.likes = [...comment.likes, userId];
+      // }
+
+      function toogleLike(comments) {
+        return comments.map((comment) => {
+          if (comment._id == commentId) {
+            if (comment.likes.includes(userId)) {
+              comment.likes = comment.likes.filter((like) => like != userId);
+              return comment;
+            } else {
+              comment.likes = [...comment.likes, userId];
+              return comment;
+            }
+          }
+
+          if(comment.replies && comment.replies.length > 0) {
+            return {...comment, replies : toogleLike(comment.replies)}
+          }
+
+          return comment;
+        });
       }
+
+      state.comments = toogleLike(state.comments);
     },
 
     setReplies(state, action) {
@@ -60,17 +82,20 @@ const selectedBlogSlice = createSlice({
           if (comment._id == newReply.parentComment) {
             parentComment = {
               ...comment,
-              replies : [...comment.replies, newReply]};
+              replies: [...comment.replies, newReply],
+            };
             break;
           }
 
-          if(comment.replies.length > 0) {
+          if (comment.replies.length > 0) {
             parentComment = findParentComment(comment.replies);
-            if(parentComment) {
+            if (parentComment) {
               parentComment = {
                 ...comment,
-                replies : comment.replies.map(reply => reply._id == parentComment._id ? parentComment : reply)
-              }
+                replies: comment.replies.map((reply) =>
+                  reply._id == parentComment._id ? parentComment : reply,
+                ),
+              };
               break;
             }
           }
@@ -80,9 +105,44 @@ const selectedBlogSlice = createSlice({
       }
 
       let parentComment = findParentComment(state.comments);
-      console.log(parentComment);    
+      console.log(parentComment);
 
-      state.comments = state.comments.map(comment => comment._id == parentComment._id ? parentComment : comment)
+      state.comments = state.comments.map((comment) =>
+        comment._id == parentComment._id ? parentComment : comment,
+      );
+    },
+
+    setUpdatedComments(state, action) {
+      function updateComment(comments) {
+        return comments?.map((comment) =>
+          comment._id == action.payload._id
+            ? { ...comment, comment: action.payload.comment }
+            : comment.replies && comment.replies.length > 0
+              ? { ...comment, replies: updateComment(comment.replies) }
+              : comment,
+        );
+      }
+
+      state.comments = updateComment(state.comments);
+    },
+
+    deleteCommentAndReply(state, action) {
+      function deleteComment(comments) {
+        if (!comments) return [];
+
+        let filteredComments = comments.filter(
+          (comment) => comment._id !== action.payload,
+        );
+
+        return filteredComments.map((comment) => {
+          if (comment.replies && comment.replies.length > 0) {
+            return { ...comment, replies: deleteComment(comment.replies) };
+          }
+          return comment;
+        });
+      }
+
+      state.comments = deleteComment(state.comments);
     },
   },
 });
@@ -94,5 +154,7 @@ export const {
   setCommentAction,
   setCommentLikes,
   setReplies,
+  setUpdatedComments,
+  deleteCommentAndReply,
 } = selectedBlogSlice.actions;
 export default selectedBlogSlice.reducer;

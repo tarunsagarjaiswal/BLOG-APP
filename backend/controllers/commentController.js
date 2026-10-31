@@ -59,24 +59,38 @@ async function deleteComment(req, res) {
     const commentId = req.params.id;
     const userId = req.user;
 
-    const comment = await Comment.findById({ _id: commentId }).populate({
+    const comment = await Comment.findById(commentId).populate({
       path: "blog",
       select: "creator",
     });
 
     if (!comment) {
-      return res.status(400).json({
+      return res.status(404).json({
         success: false,
-        message: "You didnt commented on this blog..",
+        message: "Comment does not exist.",
       });
     }
 
-    if(comment.user.toString() !== userId.toString() && 
-      comment.blog.creator.toString() !== userId.toString() ) {
-      return res.status(400).json({
+    if (
+      comment.user.toString() !== userId.toString() &&
+      comment.blog.creator._id.toString() !== userId.toString()
+    ) {
+      return res.status(403).json({
         success: false,
-        message: "You didnt commented and not authorizes for this blog..",
+        message: "You are not authorized to delete this comment.",
       });
+    }
+
+    if (comment.parentComment) {
+      await Comment.findByIdAndUpdate(
+        comment.parentComment,
+        { $pull: { replies: commentId } }
+      );
+    } else {
+      await Blog.findByIdAndUpdate(
+        comment.blog._id,
+        { $pull: { comments: commentId } }
+      );
     }
 
     async function deleteCommentAndReplies(id) {
@@ -85,31 +99,26 @@ async function deleteComment(req, res) {
       if (!currentComment) return;
 
       if (currentComment.replies && currentComment.replies.length > 0) {
-        for (let replyId of currentComment.replies) {
-          await deleteCommentAndReplies(replyId); 
-        }
+        const deletePromises = currentComment.replies.map((replyId) =>
+          deleteCommentAndReplies(replyId)
+        );
+        await Promise.all(deletePromises);
       }
 
-      await Comment.findByIdAndDelete(id);
+      await currentComment.deleteOne();
     }
 
     await deleteCommentAndReplies(commentId);
 
-    await Blog.findByIdAndUpdate(
-      comment.blog._id,
-      { $pull: { comments: commentId } },
-      { new: true },
-    );
-
-
     return res.status(200).json({
       success: true,
-      message: "You deleted the comment succefully...",
+      message: "You deleted the comment successfully.",
     });
+
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: error.message,
+      message: error.message || "Internal server error",
     });
   }
 }
@@ -142,16 +151,23 @@ async function editComment(req, res) {
       });
     }
 
-    await Comment.findByIdAndUpdate(
+    const updatedComment = await Comment.findByIdAndUpdate(
       commentId,
       { comment: updatedCommentContent },
       { new: true },
-    );
-    return res.status(200).json({
-      success: true,
-      message: "comment eidted successfully",
-      comment,
+    ).then((it) => {
+      return it.populate({
+        path: "user",
+        select: "name email",
+      });
     });
+
+    return res.status(200).json({
+      success: true,  
+      message: "comment edited successfully",
+      updatedComment,
+    });
+
   } catch (error) {
     return res.status(500).json({
       success: false,
@@ -251,7 +267,7 @@ async function addNestedComment(req, res) {
     );
 
     res.status(200).json({
-      success: false,
+      success: true,
       message: "Reply added successfully",
       newReply: newReply,
     });

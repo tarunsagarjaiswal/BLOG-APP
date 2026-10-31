@@ -1,10 +1,10 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { setisOpen } from '../utils/commentSlice';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { useParams } from 'react-router-dom';
-import { setCommentAction, setCommentLikes, setReplies } from '../utils/selectedBlogSlice';
+import { deleteCommentAndReply, setCommentAction, setCommentLikes, setReplies, setUpdatedComments } from '../utils/selectedBlogSlice';
 import formatDate from '../utils/fromatDate';
 
 function Comment() {
@@ -149,6 +149,8 @@ function DisplayComment({ comments, userId, blogID, token, activeReply, setActiv
 
             );
             toast.success(res?.data?.message);
+            console.log(res?.data?.updatedComment);
+            dispatch(setUpdatedComments(res?.data?.updatedComment));
 
         } catch (error) {
             // console.log(error.response)
@@ -157,7 +159,7 @@ function DisplayComment({ comments, userId, blogID, token, activeReply, setActiv
         finally {
             setUpdatedCommentContent("");
             setCurrentEditComment(null)
-            // dispatch(setReplies(res?.data?.newReply));
+            setCurrentPopup(null);
         }
     }
 
@@ -172,15 +174,16 @@ function DisplayComment({ comments, userId, blogID, token, activeReply, setActiv
 
             );
             toast.success(res?.data?.message);
+            dispatch(deleteCommentAndReply(id));
 
         } catch (error) {
             // console.log(error.response)
             toast.error(error?.response?.data?.message || "something went wrong");
         }
         finally {
-        //     setUpdatedCommentContent("");
-            // setCurrentEditComment(null)
-            // dispatch(setReplies(res?.data?.newReply));
+            setUpdatedCommentContent("");
+            setCurrentEditComment(null)
+            setCurrentPopup(null);
         }
     }
 
@@ -193,17 +196,23 @@ function DisplayComment({ comments, userId, blogID, token, activeReply, setActiv
                     <div className='mt-2'>
                         <textarea
                             defaultValue={it.comment}
-                            type="text" placeholder='Reply..'
+                            type="text" placeholder='Edit comment..'
                             className='resize-none h-32 w-full p-3 focus:outline-none text-lg shadow'
                             onChange={(e) => setUpdatedCommentContent(e.target.value)}
                         />
                         <div>
                             <button
-                                onClick={() => setCurrentEditComment(null)}
+                                onClick={() => {
+                                    setCurrentEditComment(null)
+                                    setCurrentPopup(null);
+                                }}
                                 className='mt-5 cursor-pointer m-3 bg-red-500 font-semibold rounded-xl px-4 py-2 text-white'> Cancel</button>
 
                             <button
-                                onClick={() => handleCommentUpdate(it._id)}
+                                onClick={() => {
+                                    handleCommentUpdate(it._id);
+                                    setCurrentPopup(null);
+                                }}
                                 className='mt-5 cursor-pointer m-3 bg-green-500 font-semibold rounded-xl px-4 py-2 text-white'> Edit</button>
                         </div>
 
@@ -223,16 +232,16 @@ function DisplayComment({ comments, userId, blogID, token, activeReply, setActiv
                             </div>
 
                             {
-                                    (creatorId == userId || it?.user?._id == userId) ? (currentPopup == it._id ?
+                                (creatorId == userId || it?.user?._id == userId) ? (currentPopup == it._id ?
                                     <div className='bg-gray-300 w-17.5 rounded-xl'>
                                         <i
                                             onClick={() => setCurrentPopup((prev) => prev == it._id ? null : it._id)}
                                             className="flex fi fi-br-cross-small text-lg left-11.5 relative cursor-pointer"></i>
 
                                         {it?.user?._id == userId &&
-                                        <p
-                                            onClick={() => setCurrentEditComment(it._id)}
-                                            className='cursor-pointer tracking-tight font-semibold hover:bg-blue-400 py-1 px-2'>Edit</p>}
+                                            <p
+                                                onClick={() => setCurrentEditComment(it._id)}
+                                                className='cursor-pointer tracking-tight font-semibold hover:bg-blue-400 py-1 px-2'>Edit</p>}
                                         <p
                                             onClick={() => handleCommentDelete(it._id)}
                                             className='cursor-pointer tracking-tight font-semibold hover:bg-blue-400 py-1 px-2'>Delete</p>
